@@ -1,3 +1,9 @@
+0.8.0 (fork)
+- black format
+- fix tests for pandas 2.x
+- fix compatibility with sqlalchemy 2.x
+- add type information
+
 0.7.0 (fork)
 ============
 - use SQLAlchemy and support Postgres (other engines can easily be added)

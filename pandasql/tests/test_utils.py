@@ -1,5 +1,7 @@
-from pandasql.sqldf import get_outer_frame_variables, extract_table_names
+from typing import Set
 import pytest
+
+from pandasql.sqldf import extract_table_names, get_outer_frame_variables
 
 
 def test_get_vars():
@@ -24,8 +26,10 @@ def test_get_vars():
             {"dbtbl", "table_2", "mytable", "another"},
         ),
         ("SELECT * FROM dbtbl, table_2 JOIN dbtbl USING (a)", {"dbtbl", "table_2"}),
-        pytest.mark.xfail(
-            ("SELECT * FROM dbtbl WHERE col = 'Go and join us!'", {"dbtbl"})
+        pytest.param(
+            "SELECT * FROM dbtbl WHERE col = 'Go and join us!'",
+            {"dbtbl"},
+            marks=pytest.mark.xfail,
         ),
         (
             "SELECT * FROM course_df WHERE coursecode IN ( SELECT DISTINCT coursecode FROM program_df )",
@@ -37,5 +41,5 @@ def test_get_vars():
         ),
     ],
 )
-def test_extract_table_names(query, expected):
+def test_extract_table_names(query: str, expected: Set[str]) -> None:
     assert extract_table_names(query) == expected

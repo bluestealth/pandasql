@@ -1,21 +1,21 @@
-from .sqldf import *
 import os
+
 import pandas as pd
+
+from .sqldf import *
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 
 
-def get_data(path):
+def get_data(path: str) -> str:
     return os.path.join(_ROOT, "data", path)
 
 
-def load_meat():
+def load_meat() -> pd.DataFrame:
     filename = get_data("meat.csv")
-    df = pd.read_csv(filename, parse_dates=[0])
-    return df
+    return pd.read_csv(filepath_or_buffer=filename, parse_dates=[0])
 
 
-def load_births():
+def load_births() -> pd.DataFrame:
     filename = get_data("births_by_month.csv")
-    df = pd.read_csv(filename, parse_dates=[0])
-    return df
+    return pd.read_csv(filepath_or_buffer=filename, parse_dates=[0])

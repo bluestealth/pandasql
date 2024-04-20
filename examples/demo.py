@@ -1,8 +1,9 @@
-from sklearn.datasets import load_iris
-import pandas as pd
-from pandasql import sqldf
-from pandasql import load_meat, load_births
 import re
+
+import pandas as pd
+from sklearn.datasets import load_iris
+
+from pandasql import load_births, load_meat, sqldf
 
 births = load_births()
 meat = load_meat()

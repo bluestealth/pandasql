@@ -1,14 +1,25 @@
+import importlib.metadata
 import inspect
-from contextlib import contextmanager
-from pandas.io.sql import to_sql, read_sql
-from sqlalchemy import create_engine
 import re
+import sqlite3
+from contextlib import contextmanager
+from typing import Any, Dict, Optional, Set, Union
 from warnings import catch_warnings, filterwarnings
+
+import packaging.version
+from pandas import DataFrame
+from pandas.io.sql import read_sql_query, to_sql
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.event import listen
 from sqlalchemy.exc import DatabaseError, ResourceClosedError
 from sqlalchemy.pool import NullPool
-from sqlalchemy.event import listen
 
 __all__ = ["PandaSQL", "PandaSQLException", "sqldf"]
+
+SQLALCHEMY_MAJOR_VERSION = packaging.version.Version(
+    importlib.metadata.version("sqlalchemy")
+).major
 
 
 class PandaSQLException(Exception):
@@ -16,30 +27,36 @@ class PandaSQLException(Exception):
 
 
 class PandaSQL:
-    def __init__(self, db_uri="sqlite:///:memory:", persist=False):
+    def __init__(self, db_uri: Optional[str], persist: bool = False) -> None:
         """
         Initialize with a specific database.
 
         :param db_uri: SQLAlchemy-compatible database URI.
         :param persist: keep tables in database between different calls on the same object of this class.
         """
-        self.engine = create_engine(db_uri, poolclass=NullPool)
+        if not db_uri:
+            db_uri = "sqlite:///:memory:"
+
+        self.engine = create_engine(url=db_uri, poolclass=NullPool)
 
         if self.engine.name == "sqlite":
-            listen(self.engine, "connect", self._set_text_factory)
-
-        if self.engine.name not in ("sqlite", "postgresql"):
+            listen(target=self.engine, identifier="connect", fn=self._set_text_factory)  # type: ignore
+        elif self.engine.name == "postgresql":
+            pass
+        else:
             raise PandaSQLException(
                 "Currently only sqlite and postgresql are supported."
             )
 
         self.persist = persist
-        self.loaded_tables = set()
+        self.loaded_tables: Set[str] = set()
         if self.persist:
             self._conn = self.engine.connect()
             self._init_connection(self._conn)
 
-    def __call__(self, query, env=None):
+    def __call__(
+        self, query: str, env: Optional[Dict[str, Any]] = None
+    ) -> Optional[DataFrame]:
         """
         Execute the SQL query.
         Automatically creates tables mentioned in the query from dataframes before executing.
@@ -64,7 +81,7 @@ class PandaSQL:
                 write_table(env[table_name], table_name, conn)
 
             try:
-                result = read_sql(query, conn)
+                result = read_sql_query(sql=query, con=conn)
             except DatabaseError as ex:
                 raise PandaSQLException(ex)
             except ResourceClosedError:
@@ -90,55 +107,67 @@ class PandaSQL:
                 # cleanup - close connection on exit
                 conn.close()
 
-    def _init_connection(self, conn):
+    def _init_connection(self, conn: Connection) -> None:
         if self.engine.name == "postgresql":
-            conn.execute("set search_path to pg_temp")
+            if SQLALCHEMY_MAJOR_VERSION >= 2:
+                from sqlalchemy import text
 
-    def _set_text_factory(self, dbapi_con, connection_record):
-        dbapi_con.text_factory = str
+                conn.execute(statement=text("set search_path to pg_temp"))
+            else:
+                conn.execute(statement="set search_path to pg_temp")
+
+    def _set_text_factory(self, dbapi_conn: sqlite3.Connection, _) -> None:
+        dbapi_conn.text_factory = str
 
 
-def get_outer_frame_variables():
+def get_outer_frame_variables() -> Dict[str, Any]:
     """Get a dict of local and global variables of the first outer frame from another file."""
-    cur_filename = inspect.getframeinfo(inspect.currentframe()).filename
+    frame = inspect.currentframe()
+    variables: Dict[str, Any] = {}
+
+    if not frame:
+        return variables
+
+    cur_filename = inspect.getframeinfo(frame).filename
     outer_frame = next(
         f
         for f in inspect.getouterframes(inspect.currentframe())
         if f.filename != cur_filename
     )
-    variables = {}
     variables.update(outer_frame.frame.f_globals)
     variables.update(outer_frame.frame.f_locals)
     return variables
 
 
-def extract_table_names(query):
+def extract_table_names(query: str) -> Set[str]:
     """Extract table names from an SQL query."""
     # a good old fashioned regex. turns out this worked better than actually parsing the code
     tables_blocks = re.findall(
         r"(?:FROM|JOIN)\s+(\w+(?:\s*,\s*\w+)*)", query, re.IGNORECASE
     )
-    tables = [tbl for block in tables_blocks for tbl in re.findall(r"\w+", block)]
-    return set(tables)
+    return {tbl for block in tables_blocks for tbl in re.findall(r"\w+", block)}
 
 
-def write_table(df, tablename, conn):
+def write_table(
+    df: DataFrame, tablename: str, conn: Union[Engine, Connection, sqlite3.Connection]
+) -> None:
     """Write a dataframe to the database."""
     with catch_warnings():
         filterwarnings(
             "ignore",
-            message="The provided table name '%s' is not found exactly as such in the database"
-            % tablename,
+            message=f"The provided table name '{tablename}' is not found exactly as such in the database",
         )
         to_sql(
-            df,
+            frame=df,
             name=tablename,
             con=conn,
-            index=not any(name is None for name in df.index.names),
+            index=not any(name is None for name in df.index.names),  # type: ignore
         )  # load index into db if all levels are named
 
 
-def sqldf(query, env=None, db_uri="sqlite:///:memory:"):
+def sqldf(
+    query: str, env: Optional[Dict[str, Any]] = None, db_uri: Optional[str] = None
+) -> Optional[DataFrame]:
     """
     Query pandas data frames using sql syntax
     This function is meant for backward compatibility only. New users are encouraged to use the PandaSQL class.
@@ -170,4 +199,4 @@ def sqldf(query, env=None, db_uri="sqlite:///:memory:"):
     >>> sqldf("select * from df;", locals())
     >>> sqldf("select avg(x) from df;", locals())
     """
-    return PandaSQL(db_uri)(query, env)
+    return PandaSQL(db_uri=db_uri)(query, env)
