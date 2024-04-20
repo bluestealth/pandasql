@@ -2,7 +2,9 @@ import os
 
 import pandas as pd
 
-from .sqldf import *
+from .sqldf import PandaSQL, PandaSQLException, sqldf
+
+__all__ = ["PandaSQL", "PandaSQLException", "sqldf"]
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 
