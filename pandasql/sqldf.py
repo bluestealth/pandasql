@@ -8,7 +8,7 @@ from warnings import catch_warnings, filterwarnings
 
 import packaging.version
 from pandas import DataFrame
-from pandas.io.sql import read_sql_query, to_sql
+from pandas.io.sql import read_sql_query
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.event import listen
@@ -157,8 +157,7 @@ def write_table(
             "ignore",
             message=f"The provided table name '{tablename}' is not found exactly as such in the database",
         )
-        to_sql(
-            frame=df,
+        df.to_sql(
             name=tablename,
             con=conn,
             index=not any(name is None for name in df.index.names),  # type: ignore
