@@ -5,7 +5,7 @@ import packaging.version
 import pandas as pd
 import pandas.testing as pdtest
 import pytest
-from typing import Dict
+from typing import Any, Dict
 
 from pandasql import PandaSQL, PandaSQLException, load_meat, sqldf
 
@@ -15,7 +15,7 @@ PANDAS_MAJOR_VERSION = packaging.version.Version(
 
 
 @pytest.fixture()
-def db_uris():
+def db_uris() -> Dict[str, str]:
     return {
         "sqlite": "sqlite:///:memory:",
         "postgres": "postgresql://postgres@localhost/",
@@ -23,7 +23,7 @@ def db_uris():
 
 
 @pytest.fixture(params=["sqlite", "postgres"])
-def db_flavor(request: pytest.FixtureRequest):
+def db_flavor(request: pytest.FixtureRequest) -> Any:
     return request.param
 
 
@@ -33,11 +33,11 @@ def db_uri(db_uris: Dict[str, str], db_flavor: str) -> str:
 
 
 @pytest.fixture(params=[False, True])
-def pdsql(db_uri: str, request: pytest.FixtureRequest):
+def pdsql(db_uri: str, request: pytest.FixtureRequest) -> PandaSQL:
     return PandaSQL(db_uri, persist=request.param)
 
 
-def test_select_legacy(db_uri: str):
+def test_select_legacy(db_uri: str) -> None:
     df = pd.DataFrame(
         {
             "letter_pos": range(len(string.ascii_letters)),
@@ -51,7 +51,7 @@ def test_select_legacy(db_uri: str):
     pdtest.assert_frame_equal(df.head(10), result)
 
 
-def test_select(pdsql: PandaSQL):
+def test_select(pdsql: PandaSQL) -> None:
     df = pd.DataFrame(
         {
             "letter_pos": range(len(string.ascii_letters)),
@@ -65,7 +65,7 @@ def test_select(pdsql: PandaSQL):
     pdtest.assert_frame_equal(df.head(10), result)
 
 
-def test_join(pdsql: PandaSQL):
+def test_join(pdsql: PandaSQL) -> None:
     df = pd.DataFrame(
         {
             "letter_pos": range(len(string.ascii_letters)),
@@ -92,7 +92,7 @@ def test_join(pdsql: PandaSQL):
     pdtest.assert_frame_equal(df2[["letter"]].head(20), result[["letter"]])
 
 
-def test_query_with_spacing(pdsql: PandaSQL):
+def test_query_with_spacing(pdsql: PandaSQL) -> None:
     df = pd.DataFrame(
         {
             "letter_pos": range(len(string.ascii_letters)),
@@ -131,7 +131,7 @@ def test_query_with_spacing(pdsql: PandaSQL):
     pdtest.assert_frame_equal(expected, result)
 
 
-def test_subquery(pdsql: PandaSQL):
+def test_subquery(pdsql: PandaSQL) -> None:
     kermit = pd.DataFrame({"x": range(10)})
     result = pdsql("SELECT * FROM (SELECT * FROM kermit) tbl LIMIT 2")
     assert result is not None
@@ -139,7 +139,7 @@ def test_subquery(pdsql: PandaSQL):
     assert len(result) == 2
 
 
-def test_in(pdsql: PandaSQL):
+def test_in(pdsql: PandaSQL) -> None:
     course_data = {
         "coursecode": ["TM351", "TU100", "M269"],
         "points": [30, 60, 30],
@@ -153,7 +153,7 @@ def test_in(pdsql: PandaSQL):
     assert len(result) == 2
 
 
-def test_in_with_subquery(pdsql: PandaSQL):
+def test_in_with_subquery(pdsql: PandaSQL) -> None:
     program_data = {
         "coursecode": [
             "TM351",
@@ -186,7 +186,7 @@ def test_in_with_subquery(pdsql: PandaSQL):
     assert len(result) == 3
 
 
-def test_datetime_query(pdsql: PandaSQL, db_flavor: str):
+def test_datetime_query(pdsql: PandaSQL, db_flavor: str) -> None:
     meat = load_meat()
     expected = meat[meat["date"] >= "2012-01-01"].reset_index(drop=True)
     result = pdsql("SELECT * FROM meat WHERE date >= '2012-01-01'")
@@ -202,7 +202,7 @@ def test_datetime_query(pdsql: PandaSQL, db_flavor: str):
         pdtest.assert_frame_equal(expected, result)
 
 
-def test_returning_single(pdsql: PandaSQL):
+def test_returning_single(pdsql: PandaSQL) -> None:
     meat = load_meat()
     result = pdsql("SELECT beef FROM meat LIMIT 10")
     assert result is not None
@@ -210,7 +210,7 @@ def test_returning_single(pdsql: PandaSQL):
     pdtest.assert_frame_equal(meat[["beef"]].head(10), result)
 
 
-def test_name_index(pdsql: PandaSQL):
+def test_name_index(pdsql: PandaSQL) -> None:
     df = pd.DataFrame(
         {
             "index": range(len(string.ascii_letters)),
@@ -224,12 +224,12 @@ def test_name_index(pdsql: PandaSQL):
     pdtest.assert_frame_equal(df, result)
 
 
-def test_nonexistent_table(pdsql: PandaSQL):
+def test_nonexistent_table(pdsql: PandaSQL) -> None:
     with pytest.raises(PandaSQLException):
         pdsql("SELECT * FROM nosuchtablereally")
 
 
-def test_system_tables(pdsql: PandaSQL, db_flavor: str):
+def test_system_tables(pdsql: PandaSQL, db_flavor: str) -> None:
     if db_flavor == "sqlite":
         # sqlite doesn't have information_schema
         result = pdsql("SELECT * FROM sqlite_master")
@@ -242,7 +242,7 @@ def test_system_tables(pdsql: PandaSQL, db_flavor: str):
 @pytest.mark.parametrize(
     "db_flavor", ["postgres"]
 )  # sqlite doesn't support tables with no columns
-def test_no_columns(pdsql: PandaSQL):
+def test_no_columns(pdsql: PandaSQL) -> None:
     df = pd.DataFrame()
     result = pdsql("SELECT * FROM df")
     assert result is not None
@@ -250,7 +250,7 @@ def test_no_columns(pdsql: PandaSQL):
     pdtest.assert_frame_equal(df, result, check_column_type=(PANDAS_MAJOR_VERSION < 2))
 
 
-def test_empty(pdsql: PandaSQL):
+def test_empty(pdsql: PandaSQL) -> None:
     df = pd.DataFrame({"x": []})
     result = pdsql("SELECT * FROM df")
     assert result is not None
@@ -258,7 +258,7 @@ def test_empty(pdsql: PandaSQL):
     pdtest.assert_index_equal(df.columns, result.columns)
 
 
-def test_noleak_legacy(db_uri: str):
+def test_noleak_legacy(db_uri: str) -> None:
     df = pd.DataFrame({"x": [1]})
     result = sqldf("SELECT * FROM df", db_uri=db_uri)
     assert result is not None
@@ -269,7 +269,7 @@ def test_noleak_legacy(db_uri: str):
 
 
 @pytest.mark.parametrize("pdsql", [False], indirect=True)
-def test_noleak_class(pdsql: PandaSQL):
+def test_noleak_class(pdsql: PandaSQL) -> None:
     df = pd.DataFrame({"x": [1]})
     result = pdsql("SELECT * FROM df")
     assert result is not None
@@ -279,7 +279,7 @@ def test_noleak_class(pdsql: PandaSQL):
         result = pdsql("SELECT * FROM df")
 
 
-def test_same_query_noerr(pdsql: PandaSQL):
+def test_same_query_noerr(pdsql: PandaSQL) -> None:
     df = pd.DataFrame({"x": [1]})
     result1 = pdsql("SELECT * FROM df")
     assert result1 is not None
@@ -290,7 +290,7 @@ def test_same_query_noerr(pdsql: PandaSQL):
 
 
 @pytest.mark.parametrize("pdsql", [True], indirect=True)
-def test_persistent(pdsql: PandaSQL):
+def test_persistent(pdsql: PandaSQL) -> None:
     df = pd.DataFrame({"x": [1]})
     result1 = pdsql("SELECT * FROM df")
     assert result1 is not None
@@ -313,12 +313,12 @@ def test_persistent(pdsql: PandaSQL):
     pdtest.assert_frame_equal(df1, result4)
 
 
-def test_noreturn_query(pdsql: PandaSQL):
+def test_noreturn_query(pdsql: PandaSQL) -> None:
     assert pdsql("CREATE TABLE tbl (col INTEGER)") is None
 
 
 @pytest.mark.parametrize("pdsql", [False], indirect=True)
-def test_no_sideeffect_leak(pdsql: PandaSQL):
+def test_no_sideeffect_leak(pdsql: PandaSQL) -> None:
     pdsql("CREATE TABLE tbl (col INTEGER)")
     with pytest.raises(PandaSQLException):
         result = pdsql("SELECT * FROM tbl")
@@ -326,7 +326,7 @@ def test_no_sideeffect_leak(pdsql: PandaSQL):
 
 
 @pytest.mark.parametrize("pdsql", [True], indirect=True)
-def test_sideeffect_persist(pdsql: PandaSQL):
+def test_sideeffect_persist(pdsql: PandaSQL) -> None:
     pdsql("CREATE TABLE tbl (col INTEGER)")
     result = pdsql("SELECT * FROM tbl")
     assert result is not None

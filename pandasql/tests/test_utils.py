@@ -4,7 +4,7 @@ import pytest
 from pandasql.sqldf import extract_table_names, get_outer_frame_variables
 
 
-def test_get_vars():
+def test_get_vars() -> None:
     var_a = 123
     variable = {"a": "b", "c": "d"}
     assert get_outer_frame_variables()["var_a"] == var_a

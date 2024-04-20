@@ -3,7 +3,7 @@ import inspect
 import re
 import sqlite3
 from contextlib import contextmanager
-from typing import Any, Dict, Optional, Set, Union
+from typing import Any, Dict, Iterator, Optional, Set, Union
 from warnings import catch_warnings, filterwarnings
 
 import packaging.version
@@ -12,6 +12,7 @@ from pandas.io.sql import read_sql_query
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.event import listen
+from sqlalchemy.pool.base import _ConnectionRecord
 from sqlalchemy.exc import DatabaseError, ResourceClosedError
 from sqlalchemy.pool import NullPool
 
@@ -40,7 +41,7 @@ class PandaSQL:
         self.engine = create_engine(url=db_uri, poolclass=NullPool)
 
         if self.engine.name == "sqlite":
-            listen(target=self.engine, identifier="connect", fn=self._set_text_factory)  # type: ignore
+            listen(target=self.engine, identifier="connect", fn=self._set_text_factory)
         elif self.engine.name == "postgresql":
             pass
         else:
@@ -78,7 +79,7 @@ class PandaSQL:
                     # table was loaded before using the same instance, don't do it again
                     continue
                 self.loaded_tables.add(table_name)
-                write_table(env[table_name], table_name, conn)
+                write_table(df=env[table_name], tablename=table_name, conn=conn)
 
             try:
                 result = read_sql_query(sql=query, con=conn)
@@ -92,7 +93,7 @@ class PandaSQL:
 
     @property
     @contextmanager
-    def conn(self):
+    def conn(self) -> Iterator[Connection]:
         if self.persist:
             # the connection is created in __init__, so just return it
             yield self._conn
@@ -116,7 +117,9 @@ class PandaSQL:
             else:
                 conn.execute(statement="set search_path to pg_temp")
 
-    def _set_text_factory(self, dbapi_conn: sqlite3.Connection, _) -> None:
+    def _set_text_factory(
+        self, dbapi_conn: sqlite3.Connection, _: _ConnectionRecord
+    ) -> None:
         dbapi_conn.text_factory = str
 
 
