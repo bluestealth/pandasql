@@ -1,11 +1,11 @@
 import importlib.metadata
 import string
+from typing import Any, Dict
 
 import packaging.version
 import pandas as pd
 import pandas.testing as pdtest
 import pytest
-from typing import Any, Dict
 
 from pandasql import PandaSQL, PandaSQLException, load_meat, sqldf
 

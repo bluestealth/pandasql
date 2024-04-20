@@ -1,4 +1,5 @@
 from typing import Set
+
 import pytest
 
 from pandasql.sqldf import extract_table_names, get_outer_frame_variables

@@ -12,9 +12,9 @@ from pandas.io.sql import read_sql_query
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.event import listen
-from sqlalchemy.pool.base import _ConnectionRecord
 from sqlalchemy.exc import DatabaseError, ResourceClosedError
 from sqlalchemy.pool import NullPool
+from sqlalchemy.pool.base import _ConnectionRecord
 
 __all__ = ["PandaSQL", "PandaSQLException", "sqldf"]
 
