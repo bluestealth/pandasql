@@ -97,6 +97,5 @@ joins and aggregations are also supported
 
 More information and code samples (by the author of the original
 version) available in the
-`examples <https://github.com/yhat/pandasql/blob/master/examples/demo.py>`__
-folder or on `his
-blog <http://blog.yhathq.com/posts/pandasql-sql-for-pandas-dataframes.html>`__.
+`examples <https://github.com/bluestealth/pandasql/blob/master/examples/demo.py>`__
+folder.

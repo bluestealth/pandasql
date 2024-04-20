@@ -76,9 +76,5 @@ joins and aggregations are also supported
 4  1948        8766
 ```
 
-More information and code samples available in the [examples](https://github.com/yhat/pandasql/blob/master/examples/demo.py)
- folder or on [our blog](http://blog.yhathq.com/posts/pandasql-sql-for-pandas-dataframes.html).
-
-
-
-[![Analytics](https://ga-beacon.appspot.com/UA-46996803-1/pandasql/README.md)](https://github.com/yhat/pandasql)    
+More information and code samples available in the [examples](https://github.com/bluestealth/pandasql/blob/master/examples/demo.py)
+ folder.
