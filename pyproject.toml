@@ -1,5 +1,5 @@
 [project]
-name = "pandasql"
+name = "pandas_query_sql"
 version = "0.8.0"
 description = "sqldf for pandas"
 authors = [
