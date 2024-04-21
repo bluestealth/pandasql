@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 import pandas as pd
 from sklearn.datasets import load_iris
@@ -25,8 +26,7 @@ q = """
         iris_df
       group by
         species;
-        
-"""
+    """
 print("*" * 80)
 print("aggregation")
 print("-" * 80)
@@ -34,7 +34,7 @@ print(q)
 print(sqldf(q, locals()))
 
 
-def pysqldf(q):
+def pysqldf(q: str) -> Optional[pd.DataFrame]:
     """Add this to your script if you get tired of calling locals()"""
     return sqldf(q, globals())
 
@@ -44,7 +44,7 @@ print("calling from a helper function")
 print(
     """def pysqldf(q):)
     "add this to your script if you get tired of calling locals()"
-        return sqldf(q, globals())"""
+        return sqldf(q, globals())""",
 )
 print("-" * 80)
 print(q)

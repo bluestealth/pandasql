@@ -11,24 +11,24 @@ from warnings import catch_warnings, filterwarnings
 import packaging.version
 from pandas import DataFrame
 from pandas.io.sql import read_sql_query
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine  # pyright: ignore[reportUnknownVariableType]
 from sqlalchemy.engine import Connection, Engine
-from sqlalchemy.event import listen
+from sqlalchemy.event import listen  # pyright: ignore[reportUnknownVariableType]
 from sqlalchemy.exc import DatabaseError, ResourceClosedError
 from sqlalchemy.pool import NullPool
-from sqlalchemy.pool.base import _ConnectionRecord
+from sqlalchemy.pool.base import (
+    _ConnectionRecord,  # pyright: ignore[reportPrivateUsage]
+)
 
 __all__ = ["PandaSQL", "PandaSQLException", "sqldf"]
 
 SQLALCHEMY_MAJOR_VERSION = packaging.version.Version(
-    importlib.metadata.version("sqlalchemy")
+    importlib.metadata.version("sqlalchemy"),
 ).major
 
 
 class PandaSQLException(Exception):
     """Exception Class for PandaSQL."""
-
-    pass
 
 
 class PandaSQL:
@@ -36,7 +36,7 @@ class PandaSQL:
 
     Attributes:
         engine: sqlalchemy database engine
-        persist: boolean to determine if tables stay loaded between function calls 
+        persist: boolean to determine if tables stay loaded between function calls
         loaded_tables: set of currently loaded table names
     """
 
@@ -57,7 +57,7 @@ class PandaSQL:
             pass
         else:
             raise PandaSQLException(
-                "Currently only sqlite and postgresql are supported."
+                "Currently only sqlite and postgresql are supported.",
             )
 
         self.persist = persist
@@ -67,7 +67,9 @@ class PandaSQL:
             self._init_connection(self._conn)
 
     def __call__(
-        self, query: str, env: Optional[Dict[str, Any]] = None
+        self,
+        query: str,
+        env: Optional[Dict[str, Any]] = None,
     ) -> Optional[DataFrame]:
         """Execute the SQL query.
 
@@ -95,7 +97,7 @@ class PandaSQL:
             try:
                 result = read_sql_query(sql=query, con=conn)
             except DatabaseError as ex:
-                raise PandaSQLException(ex)
+                raise PandaSQLException(ex) from ex
             except ResourceClosedError:
                 # query returns nothing
                 result = None
@@ -125,12 +127,18 @@ class PandaSQL:
             if SQLALCHEMY_MAJOR_VERSION >= 2:
                 from sqlalchemy import text
 
-                conn.execute(statement=text("set search_path to pg_temp"))
+                conn.execute(  # pyright: ignore[reportUnknownMemberType]
+                    statement=text("set search_path to pg_temp"),
+                )
             else:
-                conn.execute(statement="set search_path to pg_temp")
+                conn.execute(  # pyright: ignore[reportUnknownMemberType]
+                    statement="set search_path to pg_temp",
+                )
 
     def _set_text_factory(
-        self, dbapi_conn: sqlite3.Connection, _: _ConnectionRecord
+        self,
+        dbapi_conn: sqlite3.Connection,
+        _: _ConnectionRecord,
     ) -> None:
         dbapi_conn.text_factory = str
 
@@ -158,13 +166,17 @@ def extract_table_names(query: str) -> Set[str]:
     """Extract table names from an SQL query."""
     # a good old fashioned regex. turns out this worked better than actually parsing the code
     tables_blocks = re.findall(
-        r"(?:FROM|JOIN)\s+(\w+(?:\s*,\s*\w+)*)", query, re.IGNORECASE
+        r"(?:FROM|JOIN)\s+(\w+(?:\s*,\s*\w+)*)",
+        query,
+        re.IGNORECASE,
     )
     return {tbl for block in tables_blocks for tbl in re.findall(r"\w+", block)}
 
 
 def write_table(
-    df: DataFrame, tablename: str, conn: Union[Engine, Connection, sqlite3.Connection]
+    df: DataFrame,
+    tablename: str,
+    conn: Union[Engine, Connection, sqlite3.Connection],
 ) -> None:
     """Write Pandas DataFrame to SQL Table.
 
@@ -184,12 +196,17 @@ def write_table(
         df.to_sql(
             name=tablename,
             con=conn,
-            index=not any(name is None for name in df.index.names),  # type: ignore
+            index=not any(
+                name is None  # pyright: ignore[reportUnnecessaryComparison]
+                for name in df.index.names  # pyright: ignore[reportUnknownMemberType]
+            ),
         )  # load index into db if all levels are named
 
 
 def sqldf(
-    query: str, env: Optional[Dict[str, Any]] = None, db_uri: Optional[str] = None
+    query: str,
+    env: Optional[Dict[str, Any]] = None,
+    db_uri: Optional[str] = None,
 ) -> Optional[DataFrame]:
     """Query pandas data frames using sql syntax.
 

@@ -56,8 +56,8 @@ line-length = 120
 target-version = 'py38'
 
 [tool.ruff.lint]
-extend-select = ['Q', 'RUF100', 'C90', 'UP', 'I', 'D', 'T']
-extend-ignore = []
+select = ['ALL']
+ignore = ['FA100', 'ANN101', 'FBT001', 'FBT002', 'TRY003', 'EM101', 'PLR2004', 'N818']
 flake8-quotes = {}
 isort = { known-first-party = [] }
 mccabe = { max-complexity = 14 }
@@ -65,12 +65,13 @@ pydocstyle = { convention = 'google' }
 
 [tool.ruff.format]
 quote-style = "double"
+indent-style = "space"
 
 [tool.ruff.lint.per-file-ignores]
 'src/pandasql/__init__.py' = ['D']
-"examples/**/*.py" = ['D']
+"examples/**/*.py" = ['D', 'INP001']
 "tests/**/*.py" = ['D']
 
 [tool.ruff.lint.extend-per-file-ignores]
 "examples/**/*.py" = ['T']
-"tests/**/*.py" = ['T', 'E721', 'F811']
+"tests/**/*.py" = ['T', 'S101', 'PD901', 'PLR']

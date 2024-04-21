@@ -1,6 +1,6 @@
 import importlib.metadata
 import string
-from typing import Any, Dict
+from typing import Dict
 
 import packaging.version
 import pandas as pd
@@ -10,7 +10,7 @@ import pytest
 from pandasql import PandaSQL, PandaSQLException, load_meat, sqldf
 
 PANDAS_MAJOR_VERSION = packaging.version.Version(
-    importlib.metadata.version("pandas")
+    importlib.metadata.version("pandas"),
 ).major
 
 
@@ -23,8 +23,8 @@ def db_uris() -> Dict[str, str]:
 
 
 @pytest.fixture(params=["sqlite", "postgres"])
-def db_flavor(request: pytest.FixtureRequest) -> Any:
-    return request.param
+def db_flavor(request: pytest.FixtureRequest) -> str:
+    return str(request.param)
 
 
 @pytest.fixture()
@@ -42,7 +42,7 @@ def test_select_legacy(db_uri: str) -> None:
         {
             "letter_pos": range(len(string.ascii_letters)),
             "l2": list(string.ascii_letters),
-        }
+        },
     )
     result = sqldf("SELECT * FROM df LIMIT 10", db_uri=db_uri)
 
@@ -56,7 +56,7 @@ def test_select(pdsql: PandaSQL) -> None:
         {
             "letter_pos": range(len(string.ascii_letters)),
             "l2": list(string.ascii_letters),
-        }
+        },
     )
     result = pdsql("SELECT * FROM df LIMIT 10")
 
@@ -70,24 +70,25 @@ def test_join(pdsql: PandaSQL) -> None:
         {
             "letter_pos": range(len(string.ascii_letters)),
             "l2": list(string.ascii_letters),
-        }
+        },
     )
 
     df2 = pd.DataFrame(
         {
             "letter_pos": range(len(string.ascii_letters)),
             "letter": list(string.ascii_letters),
-        }
+        },
     )
 
     result = pdsql(
-        "SELECT a.*, b.letter FROM df a INNER JOIN df2 b ON a.l2 = b.letter LIMIT 20"
+        "SELECT a.*, b.letter FROM df a INNER JOIN df2 b ON a.l2 = b.letter LIMIT 20",
     )
 
     assert result is not None
     assert len(result) == 20
     pdtest.assert_frame_equal(
-        df[["letter_pos", "l2"]].head(20), result[["letter_pos", "l2"]]
+        df[["letter_pos", "l2"]].head(20),
+        result[["letter_pos", "l2"]],
     )
     pdtest.assert_frame_equal(df2[["letter"]].head(20), result[["letter"]])
 
@@ -97,7 +98,7 @@ def test_query_with_spacing(pdsql: PandaSQL) -> None:
         {
             "letter_pos": range(len(string.ascii_letters)),
             "l2": list(string.ascii_letters),
-        }
+        },
     )
     assert df is not None
 
@@ -105,12 +106,12 @@ def test_query_with_spacing(pdsql: PandaSQL) -> None:
         {
             "letter_pos": range(len(string.ascii_letters)),
             "letter": list(string.ascii_letters),
-        }
+        },
     )
     assert df2 is not None
 
     expected = pdsql(
-        "SELECT a.*, b.letter FROM df a INNER JOIN df2 b ON a.l2 = b.letter LIMIT 20"
+        "SELECT a.*, b.letter FROM df a INNER JOIN df2 b ON a.l2 = b.letter LIMIT 20",
     )
     assert expected is not None
 
@@ -171,16 +172,16 @@ def test_in_with_subquery(pdsql: PandaSQL) -> None:
     program_df = pd.DataFrame(program_data)
     assert not program_df.empty
 
-    courseData = {
+    course_data = {
         "coursecode": ["TM351", "TU100", "M269"],
         "points": [30, 60, 30],
         "level": ["3", "1", "2"],
     }
-    course_df = pd.DataFrame(courseData)
+    course_df = pd.DataFrame(course_data)
     assert not course_df.empty
 
     result = pdsql(
-        "SELECT * FROM course_df WHERE coursecode IN ( SELECT DISTINCT coursecode FROM program_df )"
+        "SELECT * FROM course_df WHERE coursecode IN ( SELECT DISTINCT coursecode FROM program_df )",
     )
     assert result is not None
     assert len(result) == 3
@@ -217,7 +218,7 @@ def test_name_index(pdsql: PandaSQL) -> None:
             "level_0": range(len(string.ascii_letters)),
             "level_1": range(len(string.ascii_letters)),
             "letter": list(string.ascii_letters),
-        }
+        },
     )
     result = pdsql("SELECT * FROM df")
     assert result is not None
@@ -240,13 +241,15 @@ def test_system_tables(pdsql: PandaSQL, db_flavor: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "db_flavor", ["postgres"]
+    "db_flavor",
+    ["postgres"],
 )  # sqlite doesn't support tables with no columns
 def test_no_columns(pdsql: PandaSQL) -> None:
     df = pd.DataFrame()
     result = pdsql("SELECT * FROM df")
     assert result is not None
-    assert df.empty and result.empty
+    assert df.empty
+    assert result.empty
     pdtest.assert_frame_equal(df, result, check_column_type=(PANDAS_MAJOR_VERSION < 2))
 
 
@@ -321,8 +324,7 @@ def test_noreturn_query(pdsql: PandaSQL) -> None:
 def test_no_sideeffect_leak(pdsql: PandaSQL) -> None:
     pdsql("CREATE TABLE tbl (col INTEGER)")
     with pytest.raises(PandaSQLException):
-        result = pdsql("SELECT * FROM tbl")
-        assert result is not None
+        pdsql("SELECT * FROM tbl")
 
 
 @pytest.mark.parametrize("pdsql", [True], indirect=True)

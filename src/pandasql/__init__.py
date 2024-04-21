@@ -1,4 +1,4 @@
-import os
+import pathlib
 
 import pandas as pd
 
@@ -6,11 +6,11 @@ from .sqldf import PandaSQL, PandaSQLException, sqldf
 
 __all__ = ["PandaSQL", "PandaSQLException", "sqldf"]
 
-_ROOT = os.path.abspath(os.path.dirname(__file__))
+_ROOT = pathlib.Path(__file__).absolute().parent
 
 
-def get_data(path: str) -> str:
-    return os.path.join(_ROOT, "data", path)
+def get_data(path: str) -> pathlib.Path:
+    return _ROOT.joinpath("data", path)
 
 
 def load_meat() -> pd.DataFrame:
