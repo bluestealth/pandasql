@@ -37,6 +37,9 @@ pandasql = ['data/births.csv', 'data/birth_by_months.csv', 'data/meat.csv', 'py.
 
 [project.optional-dependencies]
 postgresql = [
+    "psycopg2",
+]
+postgresql-binary = [
     "psycopg2-binary",
 ]
 linters = [
