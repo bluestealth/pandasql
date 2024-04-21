@@ -4,28 +4,34 @@ pandasql
 This is a fork of the original `pandasql`, with support of multiple SQL
 backends and more convenient interface. See below for more info.
 
-
 `pandasql` allows you to query `pandas` DataFrames using SQL syntax. It works 
 similarly to `sqldf` in R. `pandasql` seeks to provide a more familiar way of 
 manipulating and cleaning data for people new to Python or `pandas`.
 
-#### Installation
+## Installation
 ```
 $ pip install -U pandasql
 ```
 
-#### Basics
-The main function used in pandasql is `sqldf`. `sqldf` accepts 2 parametrs
-   - a sql query string
-   - a set of session/environment variables (`locals()` or `globals()`)
+## Basics
+In addition to the original pandasql's ``sqldf`` function this fork has
+a class ``PandaSQL``, which new users are encouraged to use.
 
-Specifying `locals()` or `globals()` can get tedious. You can define a short 
-helper function to fix this.
+`PandaSQL` Class
+---
+The class is more convenient when you need to perform multiple queries. `PandaSQL` takes 2 arguments:
+   - `db_uri`: an optional SQLAlchemy connection string (defaults to in-memory SQLite database)
+   - `persist`: an optional boolean to determine if loaded tables are persisted in the database (holds connection open, default False)
 
-    from pandasql import sqldf
-    pysqldf = lambda q: sqldf(q, globals())
+`sqldf` Function
+---
+The main function used in pandasql is `sqldf`. `sqldf` accepts 3 parameters:
+   - an sql query string
+   - an optional SQLAlchemy connection string (defaults to in-memory SQLite database)
+   - an optional dict of session/environment variables (defaults to `**locals()`,`**globals()`)
 
-#### Querying
+
+## Querying
 `pandasql` uses [SQLite syntax](http://www.sqlite.org/lang.html). Any `pandas` 
 dataframes will be automatically detected by `pandasql`. You can query them as 
 you would any regular SQL table.
@@ -33,10 +39,10 @@ you would any regular SQL table.
 
 ```
 $ python
->>> from pandasql import sqldf, load_meat, load_births
->>> pysqldf = lambda q: sqldf(q, globals())
+>>> from pandasql import PandaSQL, load_meat, load_birth
 >>> meat = load_meat()
 >>> births = load_births()
+>>> pdsql = PandaSQL()
 >>> print pysqldf("SELECT * FROM meat LIMIT 10;").head()
                   date  beef  veal  pork  lamb_and_mutton broilers other_chicken turkey
 0  1944-01-01 00:00:00   751    85  1280               89     None          None   None
@@ -79,6 +85,6 @@ joins and aggregations are also supported
 3  1947       10096
 4  1948        8766
 ```
-
-More information and code samples available in the [examples](https://github.com/bluestealth/pandasql/blob/master/examples/demo.py)
- folder.
+---
+## More Info
+More information and code samples available in the [examples](https://github.com/bluestealth/pandasql/blob/master/examples/demo.py) folder.
