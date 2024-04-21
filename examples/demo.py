@@ -35,7 +35,7 @@ print(sqldf(q, locals()))
 
 
 def pysqldf(q):
-    "add this to your script if you get tired of calling locals()"
+    """Add this to your script if you get tired of calling locals()"""
     return sqldf(q, globals())
 
 

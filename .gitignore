@@ -7,6 +7,8 @@
 # Packages
 *.egg
 *.egg-info
+*.whl
+*.tar.gz
 dist
 build
 eggs
@@ -30,9 +32,12 @@ nosetests.xml
 # Translations
 *.mo
 
-# Mr Developer
+# Development Files
 .mr.developer.cfg
 .project
 .pydevproject
 *.swp
-.env
+.env*
+.venv*
+.pdm-python
+.pdm-build

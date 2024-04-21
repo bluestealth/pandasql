@@ -1,3 +1,5 @@
+"""SQL DataFrame File."""
+
 import importlib.metadata
 import inspect
 import re
@@ -24,13 +26,22 @@ SQLALCHEMY_MAJOR_VERSION = packaging.version.Version(
 
 
 class PandaSQLException(Exception):
+    """Exception Class for PandaSQL."""
+
     pass
 
 
 class PandaSQL:
+    """Class for using SQL database to query pandas DataFrames.
+
+    Attributes:
+        engine: sqlalchemy database engine
+        persist: boolean to determine if tables stay loaded between function calls 
+        loaded_tables: set of currently loaded table names
+    """
+
     def __init__(self, db_uri: Optional[str], persist: bool = False) -> None:
-        """
-        Initialize with a specific database.
+        """Initialize with a specific database.
 
         :param db_uri: SQLAlchemy-compatible database URI.
         :param persist: keep tables in database between different calls on the same object of this class.
@@ -58,8 +69,8 @@ class PandaSQL:
     def __call__(
         self, query: str, env: Optional[Dict[str, Any]] = None
     ) -> Optional[DataFrame]:
-        """
-        Execute the SQL query.
+        """Execute the SQL query.
+
         Automatically creates tables mentioned in the query from dataframes before executing.
 
         :param query: SQL query string, which can reference pandas dataframes as SQL tables.
@@ -94,6 +105,7 @@ class PandaSQL:
     @property
     @contextmanager
     def conn(self) -> Iterator[Connection]:
+        """Context Manager for database connection."""
         if self.persist:
             # the connection is created in __init__, so just return it
             yield self._conn
@@ -154,7 +166,16 @@ def extract_table_names(query: str) -> Set[str]:
 def write_table(
     df: DataFrame, tablename: str, conn: Union[Engine, Connection, sqlite3.Connection]
 ) -> None:
-    """Write a dataframe to the database."""
+    """Write Pandas DataFrame to SQL Table.
+
+    Parameters:
+    df: pandas.DataFrame
+        dataframe to serialize
+    tablename: string
+        name of sql table to write
+    conn: sqlite or sqlalchemy connector
+        connection to sql database
+    """
     with catch_warnings():
         filterwarnings(
             "ignore",
@@ -170,11 +191,11 @@ def write_table(
 def sqldf(
     query: str, env: Optional[Dict[str, Any]] = None, db_uri: Optional[str] = None
 ) -> Optional[DataFrame]:
-    """
-    Query pandas data frames using sql syntax
+    """Query pandas data frames using sql syntax.
+
     This function is meant for backward compatibility only. New users are encouraged to use the PandaSQL class.
 
-    Parameters
+    Parameters:
     ----------
     query: string
         a sql query using DataFrames as tables
@@ -184,12 +205,12 @@ def sqldf(
     db_uri: string
         SQLAlchemy-compatible database URI
 
-    Returns
+    Returns:
     -------
     result: DataFrame
         returns a DataFrame with your query's result
 
-    Examples
+    Examples:
     --------
     >>> import pandas as pd
     >>> df = pd.DataFrame({

@@ -1,0 +1,73 @@
+[project]
+name = "pandasql"
+version = "0.8.0"
+description = "sqldf for pandas"
+authors = [
+    {name = "Alexander Plavin", email = "alexander@plav.in"},
+    {name = "Greg Lamp", email= "lamp.greg@gmail.com"},
+    {name = "Michael Dempsey", email = "bluestealth@bluestealth.pw"},
+]
+dependencies = [
+    "numpy",
+    "packaging",
+    "pandas",
+    "sqlalchemy",
+]
+requires-python = ">=3.8"
+readme = "README.md"
+license = {text = "MIT"}
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+Homepage = "https://github.com/bluestealth/pandasql/"
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.package-dir]
+pandasql = "pandasql"
+
+[tool.setuptools.package-data]
+pandasql = ['data/births.csv', 'data/birth_by_months.csv', 'data/meat.csv']
+
+[project.optional-dependencies]
+postgresql = [
+    "psycopg2-binary",
+]
+linters = [
+    "black",
+    "ruff",
+]
+testing = [
+    "pytest",
+    "psycopg2-binary",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = 'py38'
+
+[tool.ruff.lint]
+extend-select = ['Q', 'RUF100', 'C90', 'UP', 'I', 'D', 'T']
+extend-ignore = []
+flake8-quotes = {}
+isort = { known-first-party = [] }
+mccabe = { max-complexity = 14 }
+pydocstyle = { convention = 'google' }
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint.per-file-ignores]
+'src/pandasql/__init__.py' = ['D']
+"examples/**/*.py" = ['D']
+"tests/**/*.py" = ['D']
+
+[tool.ruff.lint.extend-per-file-ignores]
+"examples/**/*.py" = ['T']
+"tests/**/*.py" = ['T', 'E721', 'F811']
