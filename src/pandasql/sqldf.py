@@ -49,7 +49,7 @@ class PandaSQL:
         if not db_uri:
             db_uri = "sqlite:///:memory:"
 
-        self.engine = create_engine(url=db_uri, poolclass=NullPool)
+        self.engine: Engine = create_engine(url=db_uri, poolclass=NullPool)
 
         if self.engine.name == "sqlite":
             listen(target=self.engine, identifier="connect", fn=self._set_text_factory)
