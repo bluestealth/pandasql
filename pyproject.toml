@@ -33,7 +33,7 @@ distribution = true
 pandasql = "pandasql"
 
 [tool.setuptools.package-data]
-pandasql = ['data/births.csv', 'data/birth_by_months.csv', 'data/meat.csv']
+pandasql = ['data/births.csv', 'data/birth_by_months.csv', 'data/meat.csv', 'py.typed']
 
 [project.optional-dependencies]
 postgresql = [
