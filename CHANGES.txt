@@ -3,6 +3,7 @@
 - fix tests for pandas 2.x
 - fix compatibility with sqlalchemy 2.x
 - add type information
+- PEP 561
 
 0.7.0 (fork)
 ============

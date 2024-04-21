@@ -1,6 +1,6 @@
 [project]
 name = "pandas_query_sql"
-version = "0.8.0"
+version = "0.8.1"
 description = "sqldf for pandas"
 authors = [
     {name = "Alexander Plavin", email = "alexander@plav.in"},
