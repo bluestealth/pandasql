@@ -1,5 +1,3 @@
-from typing import Set
-
 import pytest
 
 from pandasql.sqldf import extract_table_names, get_outer_frame_variables
@@ -42,5 +40,5 @@ def test_get_vars() -> None:
         ),
     ],
 )
-def test_extract_table_names(query: str, expected: Set[str]) -> None:
+def test_extract_table_names(query: str, expected: set[str]) -> None:
     assert extract_table_names(query) == expected

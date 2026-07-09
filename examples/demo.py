@@ -1,5 +1,4 @@
 import re
-from typing import Optional
 
 import pandas as pd
 from sklearn.datasets import load_iris
@@ -34,7 +33,7 @@ print(q)
 print(sqldf(q, locals()))
 
 
-def pysqldf(q: str) -> Optional[pd.DataFrame]:
+def pysqldf(q: str) -> pd.DataFrame | None:
     """Add this to your script if you get tired of calling locals()"""
     return sqldf(q, globals())
 

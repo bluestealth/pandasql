@@ -4,17 +4,20 @@ import importlib.metadata
 import inspect
 import re
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator, Optional, Set, Union
+from typing import Any
 from warnings import catch_warnings, filterwarnings
 
 import packaging.version
 from pandas import DataFrame
+from pandas.errors import DatabaseError as PandasDatabaseError
 from pandas.io.sql import read_sql_query
 from sqlalchemy import create_engine  # pyright: ignore[reportUnknownVariableType]
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.event import listen  # pyright: ignore[reportUnknownVariableType]
-from sqlalchemy.exc import DatabaseError, ResourceClosedError
+from sqlalchemy.exc import DatabaseError as SQLAlchemyDatabaseError
+from sqlalchemy.exc import ResourceClosedError
 from sqlalchemy.pool import NullPool
 from sqlalchemy.pool.base import (
     _ConnectionRecord,  # pyright: ignore[reportPrivateUsage]
@@ -40,7 +43,7 @@ class PandaSQL:
         loaded_tables: set of currently loaded table names
     """
 
-    def __init__(self, db_uri: Optional[str], persist: bool = False) -> None:
+    def __init__(self, db_uri: str | None, persist: bool = False) -> None:
         """Initialize with a specific database.
 
         :param db_uri: SQLAlchemy-compatible database URI.
@@ -61,7 +64,7 @@ class PandaSQL:
             )
 
         self.persist = persist
-        self.loaded_tables: Set[str] = set()
+        self.loaded_tables: set[str] = set()
         if self.persist:
             self._conn = self.engine.connect()
             self._init_connection(self._conn)
@@ -69,8 +72,8 @@ class PandaSQL:
     def __call__(
         self,
         query: str,
-        env: Optional[Dict[str, Any]] = None,
-    ) -> Optional[DataFrame]:
+        env: dict[str, Any] | None = None,
+    ) -> DataFrame | None:
         """Execute the SQL query.
 
         Automatically creates tables mentioned in the query from dataframes before executing.
@@ -96,11 +99,11 @@ class PandaSQL:
 
             try:
                 result = read_sql_query(sql=query, con=conn)
-            except DatabaseError as ex:
-                raise PandaSQLException(ex) from ex
             except ResourceClosedError:
                 # query returns nothing
                 result = None
+            except (SQLAlchemyDatabaseError, PandasDatabaseError) as ex:
+                raise PandaSQLException(ex) from ex
 
         return result
 
@@ -125,13 +128,13 @@ class PandaSQL:
     def _init_connection(self, conn: Connection) -> None:
         if self.engine.name == "postgresql":
             if SQLALCHEMY_MAJOR_VERSION >= 2:
-                from sqlalchemy import text
+                from sqlalchemy import text  # noqa: PLC0415
 
                 conn.execute(  # pyright: ignore[reportUnknownMemberType]
                     statement=text("set search_path to pg_temp"),
                 )
             else:
-                conn.execute(  # pyright: ignore[reportUnknownMemberType]
+                conn.execute(  # ty: ignore[no-matching-overload]
                     statement="set search_path to pg_temp",
                 )
 
@@ -143,26 +146,22 @@ class PandaSQL:
         dbapi_conn.text_factory = str
 
 
-def get_outer_frame_variables() -> Dict[str, Any]:
+def get_outer_frame_variables() -> dict[str, Any]:
     """Get a dict of local and global variables of the first outer frame from another file."""
     frame = inspect.currentframe()
-    variables: Dict[str, Any] = {}
+    variables: dict[str, Any] = {}
 
     if not frame:
         return variables
 
     cur_filename = inspect.getframeinfo(frame).filename
-    outer_frame = next(
-        f
-        for f in inspect.getouterframes(inspect.currentframe())
-        if f.filename != cur_filename
-    )
+    outer_frame = next(f for f in inspect.getouterframes(inspect.currentframe()) if f.filename != cur_filename)
     variables.update(outer_frame.frame.f_globals)
     variables.update(outer_frame.frame.f_locals)
     return variables
 
 
-def extract_table_names(query: str) -> Set[str]:
+def extract_table_names(query: str) -> set[str]:
     """Extract table names from an SQL query."""
     # a good old fashioned regex. turns out this worked better than actually parsing the code
     tables_blocks = re.findall(
@@ -176,7 +175,7 @@ def extract_table_names(query: str) -> Set[str]:
 def write_table(
     df: DataFrame,
     tablename: str,
-    conn: Union[Engine, Connection, sqlite3.Connection],
+    conn: Engine | Connection | sqlite3.Connection,
 ) -> None:
     """Write Pandas DataFrame to SQL Table.
 
@@ -205,9 +204,9 @@ def write_table(
 
 def sqldf(
     query: str,
-    env: Optional[Dict[str, Any]] = None,
-    db_uri: Optional[str] = None,
-) -> Optional[DataFrame]:
+    env: dict[str, Any] | None = None,
+    db_uri: str | None = None,
+) -> DataFrame | None:
     """Query pandas data frames using sql syntax.
 
     This function is meant for backward compatibility only. New users are encouraged to use the PandaSQL class.

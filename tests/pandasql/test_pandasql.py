@@ -1,11 +1,12 @@
 import importlib.metadata
 import string
-from typing import Dict
+from collections.abc import Iterator
 
 import packaging.version
 import pandas as pd
 import pandas.testing as pdtest
 import pytest
+from testcontainers.postgres import PostgresContainer
 
 from pandasql import PandaSQL, PandaSQLException, load_meat, sqldf
 
@@ -14,12 +15,13 @@ PANDAS_MAJOR_VERSION = packaging.version.Version(
 ).major
 
 
-@pytest.fixture()
-def db_uris() -> Dict[str, str]:
-    return {
-        "sqlite": "sqlite:///:memory:",
-        "postgres": "postgresql://postgres@localhost/",
-    }
+@pytest.fixture(scope="session")
+def postgres_uri() -> Iterator[str]:
+    try:
+        with PostgresContainer("public.ecr.aws/docker/library/postgres:18-alpine3.24", driver="psycopg2") as postgres:
+            yield postgres.get_connection_url()
+    except Exception as exc:
+        pytest.skip(f"Postgres testcontainer unavailable: {exc}")
 
 
 @pytest.fixture(params=["sqlite", "postgres"])
@@ -27,9 +29,11 @@ def db_flavor(request: pytest.FixtureRequest) -> str:
     return str(request.param)
 
 
-@pytest.fixture()
-def db_uri(db_uris: Dict[str, str], db_flavor: str) -> str:
-    return db_uris[db_flavor]
+@pytest.fixture
+def db_uri(db_flavor: str, request: pytest.FixtureRequest) -> str:
+    if db_flavor == "sqlite":
+        return "sqlite:///:memory:"
+    return str(request.getfixturevalue("postgres_uri"))
 
 
 @pytest.fixture(params=[False, True])
@@ -243,6 +247,7 @@ def test_system_tables(pdsql: PandaSQL, db_flavor: str) -> None:
 @pytest.mark.parametrize(
     "db_flavor",
     ["postgres"],
+    indirect=True,
 )  # sqlite doesn't support tables with no columns
 def test_no_columns(pdsql: PandaSQL) -> None:
     df = pd.DataFrame()

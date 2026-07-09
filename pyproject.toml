@@ -13,27 +13,13 @@ dependencies = [
     "pandas",
     "sqlalchemy",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 readme = "README.md"
-license = {text = "MIT"}
-classifiers = [
-    "License :: OSI Approved :: MIT License",
-]
+license = "MIT"
+license-files = ["LICENSE.txt"]
 
 [project.urls]
 Homepage = "https://github.com/bluestealth/pandasql/"
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
-
-[tool.pdm]
-distribution = true
-
-[tool.pdm.package-dir]
-pandasql = "pandasql"
-
-[tool.setuptools.package-data]
-pandasql = ['data/births.csv', 'data/birth_by_months.csv', 'data/meat.csv', 'py.typed']
 
 [project.optional-dependencies]
 postgresql = [
@@ -42,22 +28,33 @@ postgresql = [
 postgresql-binary = [
     "psycopg2-binary",
 ]
-linters = [
-    "black",
+
+[dependency-groups]
+dev = [
     "ruff",
-]
-testing = [
     "pytest",
     "psycopg2-binary",
+    "testcontainers[postgres]",
+    'ty',
 ]
+
+[build-system]
+requires = ["uv_build>=0.11.28,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "pandasql"
+
+[tool.ty.src]
+exclude = ["examples/**"]
 
 [tool.ruff]
 line-length = 120
-target-version = 'py38'
+target-version = 'py310'
 
 [tool.ruff.lint]
 select = ['ALL']
-ignore = ['FA100', 'ANN101', 'FBT001', 'FBT002', 'TRY003', 'EM101', 'PLR2004', 'N818']
+ignore = ['COM812', 'FBT001', 'FBT002', 'TRY003', 'EM101', 'PLR2004', 'N818']
 flake8-quotes = {}
 isort = { known-first-party = [] }
 mccabe = { max-complexity = 14 }
@@ -70,7 +67,7 @@ indent-style = "space"
 [tool.ruff.lint.per-file-ignores]
 'src/pandasql/__init__.py' = ['D']
 "examples/**/*.py" = ['D', 'INP001']
-"tests/**/*.py" = ['D']
+"tests/**/*.py" = ['D', 'BLE001']
 
 [tool.ruff.lint.extend-per-file-ignores]
 "examples/**/*.py" = ['T']
