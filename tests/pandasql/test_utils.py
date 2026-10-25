@@ -28,7 +28,6 @@ def test_get_vars() -> None:
         pytest.param(
             "SELECT * FROM dbtbl WHERE col = 'Go and join us!'",
             {"dbtbl"},
-            marks=pytest.mark.xfail,
         ),
         (
             "SELECT * FROM course_df WHERE coursecode IN ( SELECT DISTINCT coursecode FROM program_df )",

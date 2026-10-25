@@ -10,6 +10,7 @@ from typing import Any
 from warnings import catch_warnings, filterwarnings
 
 import packaging.version
+import sqlglot
 from pandas import DataFrame
 from pandas.errors import DatabaseError as PandasDatabaseError
 from pandas.io.sql import read_sql_query
@@ -22,12 +23,16 @@ from sqlalchemy.pool import NullPool
 from sqlalchemy.pool.base import (
     _ConnectionRecord,  # pyright: ignore[reportPrivateUsage]
 )
+from sqlglot import exp
+from sqlglot.errors import ParseError
 
 __all__ = ["PandaSQL", "PandaSQLException", "sqldf"]
 
 SQLALCHEMY_MAJOR_VERSION = packaging.version.Version(
     importlib.metadata.version("sqlalchemy"),
 ).major
+
+ENGINE_TO_DIALECT = {"sqlite": "sqlite", "postgresql": "postgres"}
 
 
 class PandaSQLException(Exception):
@@ -87,7 +92,7 @@ class PandaSQL:
             env = get_outer_frame_variables()
 
         with self.conn as conn:
-            for table_name in extract_table_names(query):
+            for table_name in extract_table_names(query, self.engine.name):
                 df = env.get(table_name)
                 if not isinstance(df, DataFrame):
                     continue
@@ -163,15 +168,34 @@ def get_outer_frame_variables() -> dict[str, Any]:
     return variables
 
 
-def extract_table_names(query: str) -> set[str]:
-    """Extract table names from an SQL query."""
-    # a good old fashioned regex. turns out this worked better than actually parsing the code
+def _extract_table_names_regex(query: str) -> set[str]:
+    """Extract table names from an SQL query regex fallaback."""
     tables_blocks = re.findall(
         r"(?:FROM|JOIN)\s+(\w+(?:\s*,\s*\w+)*)",
         query,
         re.IGNORECASE,
     )
     return {tbl for block in tables_blocks for tbl in re.findall(r"\w+", block)}
+
+
+def extract_table_names(query: str, engine_name: str = "sqlite") -> set[str]:
+    """Extract table names from an SQL query."""
+    dialect = ENGINE_TO_DIALECT.get(engine_name)
+    try:
+        statements = sqlglot.parse(query, read=dialect)
+    except ParseError:
+        return _extract_table_names_regex(query)
+    names: set[str] = set()
+    for stmt in statements:
+        if stmt is None:
+            continue
+        ctes = {cte.alias_or_name for cte in stmt.find_all(exp.CTE)}
+        for table in stmt.find_all(exp.Table):
+            if table.db or table.catalog or isinstance(table.parent, exp.Create):
+                continue
+            if table.name and table.name not in ctes:
+                names.add(table.name)
+    return names
 
 
 def write_table(

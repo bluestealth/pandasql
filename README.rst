@@ -14,7 +14,7 @@ Installation
 
 ::
 
-   $ pip install -U pandasql
+   $ pip install -U pandas_query_sql
 
 Basics
 ------
