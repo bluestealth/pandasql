@@ -1,5 +1,7 @@
+import gc
 import importlib.metadata
 import string
+import weakref
 from collections.abc import Iterator
 
 import packaging.version
@@ -338,3 +340,61 @@ def test_sideeffect_persist(pdsql: PandaSQL) -> None:
     result = pdsql("SELECT * FROM tbl")
     assert result is not None
     assert list(result.columns) == ["col"]
+
+
+def test_default_db_uri() -> None:
+    df = pd.DataFrame({"x": [1]})
+    result = PandaSQL()("SELECT * FROM df")
+    assert result is not None
+    pdtest.assert_frame_equal(df, result)
+
+
+def test_string_literal_does_not_load_table(pdsql: PandaSQL) -> None:
+    secret = pd.DataFrame({"password": ["hunter2"]})
+    notes = pd.DataFrame({"note": ["please JOIN secret later"]})
+    env = {"notes": notes, "secret": secret}
+    result = pdsql("SELECT * FROM notes WHERE note = 'please JOIN secret later'", env=env)
+    assert result is not None
+    assert len(result) == 1
+    with pytest.raises(PandaSQLException):
+        pdsql("SELECT * FROM secret", env={})
+
+
+def test_non_dataframe_env_value_is_ignored(pdsql: PandaSQL) -> None:
+    with pytest.raises(PandaSQLException):
+        pdsql("SELECT * FROM string", env={"string": string})
+
+
+@pytest.mark.parametrize("pdsql", [True], indirect=True)
+def test_table_collision_raises_library_exception(pdsql: PandaSQL) -> None:
+    pdsql("CREATE TABLE tbl (col INTEGER)")
+    tbl = pd.DataFrame({"col": [1]})
+    with pytest.raises(PandaSQLException):
+        pdsql("SELECT * FROM tbl", env={"tbl": tbl})
+
+
+@pytest.mark.parametrize("pdsql", [True], indirect=True)
+def test_create_table_does_not_load_same_named_dataframe(pdsql: PandaSQL) -> None:
+    tbl = pd.DataFrame({"col": [1, 2]})
+    assert pdsql("CREATE TABLE tbl (col INTEGER)", env={"tbl": tbl}) is None
+    result = pdsql("SELECT * FROM tbl", env={})
+    assert result is not None
+    assert result.empty
+
+
+def test_failed_write_is_not_marked_loaded(pdsql: PandaSQL) -> None:
+    bad = pd.DataFrame({"a": [1 + 2j]})  # complex dtype is rejected by pandas before any SQL runs
+    with pytest.raises(PandaSQLException):
+        pdsql("SELECT * FROM bad", env={"bad": bad})
+    assert "bad" not in pdsql.loaded_tables
+
+
+def test_persistent_sqlite_instance_is_collectable() -> None:
+    pdsql = PandaSQL("sqlite:///:memory:", persist=True)
+    df = pd.DataFrame({"x": [1]})
+    # explicit env: with implicit env this frame's own locals snapshot would pin the instance
+    pdsql("SELECT * FROM df", env={"df": df})
+    ref = weakref.ref(pdsql)
+    del pdsql
+    gc.collect()
+    assert ref() is None
