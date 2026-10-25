@@ -170,7 +170,7 @@ def get_outer_frame_variables() -> dict[str, Any]:
 
 
 def _extract_table_names_regex(query: str) -> set[str]:
-    """Extract table names from an SQL query regex fallaback."""
+    """Extract table names from an SQL query (regex fallback for SQL sqlglot cannot parse)."""
     tables_blocks = re.findall(
         r"(?:FROM|JOIN)\s+(\w+(?:\s*,\s*\w+)*)",
         query,
@@ -192,11 +192,18 @@ def extract_table_names(query: str, engine_name: str = "sqlite") -> set[str]:
             continue
         ctes = {cte.alias_or_name for cte in stmt.find_all(exp.CTE)}
         for table in stmt.find_all(exp.Table):
-            if table.db or table.catalog or isinstance(table.parent, exp.Create):
+            if table.db or table.catalog or _is_create_target(table):
                 continue
             if table.name and table.name not in ctes:
                 names.add(table.name)
     return names
+
+
+def _is_create_target(table: exp.Table) -> bool:
+    """Whether the table is the object being created (not a table read by e.g. CREATE TABLE ... AS SELECT)."""
+    # for `CREATE TABLE t (cols)` the table's direct parent is a Schema node, not the Create node
+    create = table.find_ancestor(exp.Create)
+    return create is not None and create.this in (table, table.parent)
 
 
 def write_table(
