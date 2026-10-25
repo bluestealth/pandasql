@@ -48,8 +48,14 @@ default, with PostgreSQL also supported.
 
 Table names in `FROM` / `JOIN` are looked up in the caller's scope (or in the
 `env` dict you pass). Only `DataFrame` values are written into the database.
-With `persist=True`, each name is loaded once and reused. Pass `env=` when you
-want an explicit mapping instead of auto-detection from the surrounding scope.
+Pass `env=` when you want an explicit mapping instead of auto-detection from
+the surrounding scope.
+
+**`persist=True` loads each table name once.** Later calls reuse the table
+already in the database, even if the DataFrame with that name has since been
+reassigned, modified, or deleted. Use a new `PandaSQL` instance (or
+`persist=False`, the default) when you need the current contents of a
+DataFrame.
 
 Any `pandas` DataFrames in that environment can be queried as SQL tables:
 
