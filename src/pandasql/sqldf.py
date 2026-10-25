@@ -6,7 +6,8 @@ import re
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any
+from types import TracebackType
+from typing import Any, Self
 from warnings import catch_warnings, filterwarnings
 
 import packaging.version
@@ -71,9 +72,37 @@ class PandaSQL:
 
         self.persist = persist
         self.loaded_tables: set[str] = set()
+        self._closed = False
         if self.persist:
             self._conn = self.engine.connect()
             self._init_connection(self._conn)
+
+    def close(self) -> None:
+        """Release the database connection held by a persistent instance.
+
+        With ``persist=True`` the connection (and, for PostgreSQL, the server session holding the
+        loaded tables) otherwise stays open until the instance is garbage-collected. Calling this
+        more than once is harmless; a closed instance cannot run further queries.
+        """
+        if self._closed:
+            return
+        self._closed = True
+        if self.persist:
+            self._conn.close()
+        self.engine.dispose()
+
+    def __enter__(self) -> Self:
+        """Return the instance for use in a ``with`` block."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Close the instance when the ``with`` block exits."""
+        self.close()
 
     def __call__(
         self,
@@ -89,6 +118,8 @@ class PandaSQL:
         If not specified use local and global variables of the caller.
         :return: Pandas dataframe with the result of the SQL query.
         """
+        if self._closed:
+            raise PandaSQLException("This PandaSQL instance has been closed.")
         if env is None:
             env = get_outer_frame_variables()
 

@@ -33,6 +33,15 @@ In addition to the original pandasql `sqldf` function, this fork provides
 >>> pdsql = PandaSQL()  # in-memory SQLite by default
 ```
 
+A persistent instance holds its database connection open (for PostgreSQL, a
+server session) until it is closed or garbage-collected. Close it explicitly
+with `close()` or use it as a context manager:
+
+```python
+>>> with PandaSQL("postgresql://...", persist=True) as pdsql:
+...     result = pdsql("SELECT * FROM df")
+```
+
 `sqldf` Function
 ---
 `sqldf` accepts 3 parameters (matching the function signature):

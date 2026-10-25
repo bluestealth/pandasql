@@ -1,5 +1,6 @@
 import gc
 import importlib.metadata
+import sqlite3
 import string
 import weakref
 from collections.abc import Iterator
@@ -398,3 +399,40 @@ def test_persistent_sqlite_instance_is_collectable() -> None:
     del pdsql
     gc.collect()
     assert ref() is None
+
+
+def test_close_releases_persistent_connection() -> None:
+    pdsql = PandaSQL("sqlite:///:memory:", persist=True)
+    df = pd.DataFrame({"x": [1]})
+    pdsql("SELECT * FROM df", env={"df": df})
+    raw = pdsql._conn.connection.dbapi_connection  # noqa: SLF001
+    assert isinstance(raw, sqlite3.Connection)
+    gc.disable()  # prove release is deterministic, not a side effect of the cycle collector
+    try:
+        pdsql.close()
+        with pytest.raises(sqlite3.ProgrammingError):
+            raw.execute("select 1")
+    finally:
+        gc.enable()
+
+
+def test_close_is_idempotent_and_blocks_further_queries(pdsql: PandaSQL) -> None:
+    df = pd.DataFrame({"x": [1]})
+    pdsql("SELECT * FROM df", env={"df": df})
+    pdsql.close()
+    pdsql.close()
+    with pytest.raises(PandaSQLException, match="closed"):
+        pdsql("SELECT * FROM df", env={"df": df})
+
+
+def test_context_manager_closes(db_uri: str) -> None:
+    df = pd.DataFrame({"x": [1]})
+    with PandaSQL(db_uri, persist=True) as pdsql:
+        result = pdsql("SELECT * FROM df", env={"df": df})
+        assert result is not None
+        pdtest.assert_frame_equal(df, result)
+        conn = pdsql._conn  # noqa: SLF001
+        assert not conn.closed
+    assert conn.closed
+    with pytest.raises(PandaSQLException, match="closed"):
+        pdsql("SELECT * FROM df", env={"df": df})
