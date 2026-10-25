@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --group dev
+      - run: uv run ruff check src tests examples
+      - run: uv run ruff format --check src tests examples
+      - run: uv run ty check src
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # pandas and SQLAlchemy must be on the same side of 2.0; each cell is one supported pairing
+          - name: "py3.12 / pandas 3 / SQLAlchemy 2 (locked)"
+            python: "3.12"
+            pins: ""
+          - name: "py3.12 / pandas 2.1 / SQLAlchemy 1.4"
+            python: "3.12"
+            pins: "pandas<2.2 sqlalchemy<2 numpy<2"
+          - name: "py3.11 / pandas 1.5 / SQLAlchemy 1.4"
+            python: "3.11"
+            pins: "pandas<2 sqlalchemy<2 numpy<2"
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --group dev
+      - if: matrix.pins != ''
+        run: uv pip install ${{ matrix.pins }}
+      - run: uv run --no-sync pytest -q
