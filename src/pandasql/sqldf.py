@@ -4,7 +4,7 @@ import importlib.metadata
 import inspect
 import re
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
 from warnings import catch_warnings, filterwarnings
@@ -109,7 +109,7 @@ class PandaSQL:
 
     @property
     @contextmanager
-    def conn(self) -> Iterator[Connection]:
+    def conn(self) -> Generator[Connection]:
         """Context Manager for database connection."""
         if self.persist:
             # the connection is created in __init__, so just return it

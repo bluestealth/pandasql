@@ -6,7 +6,7 @@ import packaging.version
 import pandas as pd
 import pandas.testing as pdtest
 import pytest
-from testcontainers.postgres import PostgresContainer
+from testcontainers.community.postgres import PostgresContainer
 
 from pandasql import PandaSQL, PandaSQLException, load_meat, sqldf
 

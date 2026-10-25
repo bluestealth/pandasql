@@ -1,6 +1,6 @@
 [project]
 name = "pandas_query_sql"
-version = "0.8.2"
+version = "0.8.3.dev0"
 description = "sqldf for pandas"
 authors = [
     {name = "Alexander Plavin", email = "alexander@plav.in"},
@@ -13,7 +13,7 @@ dependencies = [
     "pandas",
     "sqlalchemy",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE.txt"]
@@ -39,7 +39,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.11.28,<0.12"]
+requires = ["uv_build>=0.13.5,<0.14"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
@@ -50,11 +50,11 @@ exclude = ["examples/**"]
 
 [tool.ruff]
 line-length = 120
-target-version = 'py310'
+target-version = 'py311'
 
 [tool.ruff.lint]
 select = ['ALL']
-ignore = ['COM812', 'FBT001', 'FBT002', 'TRY003', 'EM101', 'PLR2004', 'N818']
+ignore = ['COM812', "CPY001", 'FBT001', 'FBT002', 'TRY003', 'EM101', 'PLR2004', 'N818']
 flake8-quotes = {}
 isort = { known-first-party = [] }
 mccabe = { max-complexity = 14 }
