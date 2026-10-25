@@ -1,90 +1,122 @@
 pandasql
 ========
 
-This is a fork of the original `pandasql`, with support of multiple SQL
-backends and more convenient interface. See below for more info.
+This is the maintained fork of the archived [yhat/pandasql](https://github.com/yhat/pandasql).
+It adds multi-backend SQL support and a more convenient class-based interface.
 
-`pandasql` allows you to query `pandas` DataFrames using SQL syntax. It works 
-similarly to `sqldf` in R. `pandasql` seeks to provide a more familiar way of 
-manipulating and cleaning data for people new to Python or `pandas`.
+`pandasql` lets you query `pandas` DataFrames using SQL syntax, similar to `sqldf` in R.
+It is aimed at people who prefer SQL for manipulating and cleaning data.
 
 ## Installation
 ```
-$ pip install -U pandasql
+$ pip install -U pandas_query_sql
 ```
 
+The import name is still `pandasql`.
+
+`pandas` and SQLAlchemy must stay on the same side of 2.0: use pandas ≤2.1 with
+SQLAlchemy 1.4, or pandas ≥2.2 with SQLAlchemy ≥2.0.
+
 ## Basics
-In addition to the original pandasql's ``sqldf`` function this fork has
-a class ``PandaSQL``, which new users are encouraged to use.
+In addition to the original pandasql `sqldf` function, this fork provides
+`PandaSQL`, which new users are encouraged to use.
 
 `PandaSQL` Class
 ---
-The class is more convenient when you need to perform multiple queries. `PandaSQL` takes 2 arguments:
-   - `db_uri`: an optional SQLAlchemy connection string (defaults to in-memory SQLite database)
-   - `persist`: an optional boolean to determine if loaded tables are persisted in the database (holds connection open, default False)
+`PandaSQL` is convenient when you run multiple queries. It takes 2 arguments:
+   - `db_uri`: an optional SQLAlchemy connection string (defaults to in-memory SQLite)
+   - `persist`: an optional boolean; if true, loaded tables stay in the database
+     between calls (holds the connection open; default `False`)
+
+```python
+>>> from pandasql import PandaSQL
+>>> pdsql = PandaSQL()  # in-memory SQLite by default
+```
+
+A persistent instance holds its database connection open (for PostgreSQL, a
+server session) until it is closed or garbage-collected. Close it explicitly
+with `close()` or use it as a context manager:
+
+```python
+>>> with PandaSQL("postgresql://...", persist=True) as pdsql:
+...     result = pdsql("SELECT * FROM df")
+```
 
 `sqldf` Function
 ---
-The main function used in pandasql is `sqldf`. `sqldf` accepts 3 parameters:
-   - an sql query string
-   - an optional SQLAlchemy connection string (defaults to in-memory SQLite database)
-   - an optional dict of session/environment variables (defaults to `**locals()`,`**globals()`)
+`sqldf` accepts 3 parameters (matching the function signature):
+   - `query`: an SQL query string
+   - `env`: an optional dict of session/environment variables (defaults to the
+     caller's locals and globals)
+   - `db_uri`: an optional SQLAlchemy connection string (defaults to in-memory SQLite)
 
 
 ## Querying
-`pandasql` uses [SQLite syntax](http://www.sqlite.org/lang.html). Any `pandas` 
-dataframes will be automatically detected by `pandasql`. You can query them as 
-you would any regular SQL table.
+SQL syntax is whatever the backend pointed at by `db_uri` expects — SQLite by
+default, with PostgreSQL also supported.
+
+Table names in `FROM` / `JOIN` are looked up in the caller's scope (or in the
+`env` dict you pass). Only `DataFrame` values are written into the database.
+Pass `env=` when you want an explicit mapping instead of auto-detection from
+the surrounding scope.
+
+**`persist=True` loads each table name once.** Later calls reuse the table
+already in the database, even if the DataFrame with that name has since been
+reassigned, modified, or deleted. Use a new `PandaSQL` instance (or
+`persist=False`, the default) when you need the current contents of a
+DataFrame.
+
+Any `pandas` DataFrames in that environment can be queried as SQL tables:
 
 
 ```
 $ python
->>> from pandasql import PandaSQL, load_meat, load_birth
+>>> from pandasql import PandaSQL, load_meat, load_births
 >>> meat = load_meat()
 >>> births = load_births()
 >>> pdsql = PandaSQL()
->>> print pysqldf("SELECT * FROM meat LIMIT 10;").head()
-                  date  beef  veal  pork  lamb_and_mutton broilers other_chicken turkey
-0  1944-01-01 00:00:00   751    85  1280               89     None          None   None
-1  1944-02-01 00:00:00   713    77  1169               72     None          None   None
-2  1944-03-01 00:00:00   741    90  1128               75     None          None   None
-3  1944-04-01 00:00:00   650    89   978               66     None          None   None
-4  1944-05-01 00:00:00   681   106  1029               78     None          None   None
+>>> print(pdsql("SELECT * FROM meat LIMIT 10;").head())
+                         date   beef   veal    pork  lamb_and_mutton broilers other_chicken turkey
+0  1944-01-01 00:00:00.000000  751.0   85.0  1280.0             89.0     None          None   None
+1  1944-02-01 00:00:00.000000  713.0   77.0  1169.0             72.0     None          None   None
+2  1944-03-01 00:00:00.000000  741.0   90.0  1128.0             75.0     None          None   None
+3  1944-04-01 00:00:00.000000  650.0   89.0   978.0             66.0     None          None   None
+4  1944-05-01 00:00:00.000000  681.0  106.0  1029.0             78.0     None          None   None
 ```
 
 joins and aggregations are also supported
 ```
 >>> q = """SELECT
-        m.date, m.beef, b.births
-     FROM
-        meats m
-     INNER JOIN
-        births b
-           ON m.date = b.date;"""
->>> joined = pyqldf(q)
->>> print joined.head()
-                    date    beef  births
-403  2012-07-01 00:00:00  2200.8  368450
-404  2012-08-01 00:00:00  2367.5  359554
-405  2012-09-01 00:00:00  2016.0  361922
-406  2012-10-01 00:00:00  2343.7  347625
-407  2012-11-01 00:00:00  2206.6  320195
+...         m.date, m.beef, b.births
+...      FROM
+...         meat m
+...      INNER JOIN
+...         births b
+...            ON m.date = b.date;"""
+>>> joined = pdsql(q)
+>>> print(joined.head())
+                         date    beef  births
+0  1975-01-01 00:00:00.000000  2106.0  265775
+1  1975-02-01 00:00:00.000000  1845.0  241045
+2  1975-03-01 00:00:00.000000  1891.0  268849
+3  1975-04-01 00:00:00.000000  1895.0  247455
+4  1975-05-01 00:00:00.000000  1849.0  254545
 
->>> q = "select
-           strftime('%Y', date) as year
-           , SUM(beef) as beef_total
-           FROM
-              meat
-           GROUP BY
-              year;"
->>> print pysqldf(q).head()
+>>> q = """select
+...            strftime('%Y', date) as year
+...            , SUM(beef) as beef_total
+...            FROM
+...               meat
+...            GROUP BY
+...               year;"""
+>>> print(pdsql(q).head())
    year  beef_total
-0  1944        8801
-1  1945        9936
-2  1946        9010
-3  1947       10096
-4  1948        8766
+0  1944      8801.0
+1  1945      9936.0
+2  1946      9010.0
+3  1947     10096.0
+4  1948      8766.0
 ```
 ---
 ## More Info
-More information and code samples available in the [examples](https://github.com/bluestealth/pandasql/blob/master/examples/demo.py) folder.
+More information and code samples available in the [examples](https://github.com/bluestealth/pandasql/blob/main/examples/demo.py) folder.

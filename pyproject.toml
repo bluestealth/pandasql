@@ -1,6 +1,6 @@
 [project]
 name = "pandas_query_sql"
-version = "0.8.3.dev0"
+version = "0.8.3.dev1"
 description = "sqldf for pandas"
 authors = [
     {name = "Alexander Plavin", email = "alexander@plav.in"},
@@ -35,6 +35,7 @@ dev = [
     "ruff",
     "pytest",
     "psycopg2-binary",
+    "pandas-stubs",
     "testcontainers[postgres]",
     'ty',
 ]

@@ -6,7 +6,8 @@ import re
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any
+from types import TracebackType
+from typing import Any, Self
 from warnings import catch_warnings, filterwarnings
 
 import packaging.version
@@ -51,7 +52,8 @@ class PandaSQL:
     def __init__(self, db_uri: str | None = None, persist: bool = False) -> None:
         """Initialize with a specific database.
 
-        :param db_uri: SQLAlchemy-compatible database URI.
+        :param db_uri: SQLAlchemy-compatible database URI. Defaults to an
+            in-memory SQLite database (`sqlite:///:memory:`).
         :param persist: keep tables in database between different calls on the same object of this class.
         """
         if not db_uri:
@@ -70,9 +72,37 @@ class PandaSQL:
 
         self.persist = persist
         self.loaded_tables: set[str] = set()
+        self._closed = False
         if self.persist:
             self._conn = self.engine.connect()
             self._init_connection(self._conn)
+
+    def close(self) -> None:
+        """Release the database connection held by a persistent instance.
+
+        With ``persist=True`` the connection (and, for PostgreSQL, the server session holding the
+        loaded tables) otherwise stays open until the instance is garbage-collected. Calling this
+        more than once is harmless; a closed instance cannot run further queries.
+        """
+        if self._closed:
+            return
+        self._closed = True
+        if self.persist:
+            self._conn.close()
+        self.engine.dispose()
+
+    def __enter__(self) -> Self:
+        """Return the instance for use in a ``with`` block."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Close the instance when the ``with`` block exits."""
+        self.close()
 
     def __call__(
         self,
@@ -88,6 +118,8 @@ class PandaSQL:
         If not specified use local and global variables of the caller.
         :return: Pandas dataframe with the result of the SQL query.
         """
+        if self._closed:
+            raise PandaSQLException("This PandaSQL instance has been closed.")
         if env is None:
             env = get_outer_frame_variables()
 
@@ -169,7 +201,7 @@ def get_outer_frame_variables() -> dict[str, Any]:
 
 
 def _extract_table_names_regex(query: str) -> set[str]:
-    """Extract table names from an SQL query regex fallaback."""
+    """Extract table names from an SQL query (regex fallback for SQL sqlglot cannot parse)."""
     tables_blocks = re.findall(
         r"(?:FROM|JOIN)\s+(\w+(?:\s*,\s*\w+)*)",
         query,
@@ -191,11 +223,18 @@ def extract_table_names(query: str, engine_name: str = "sqlite") -> set[str]:
             continue
         ctes = {cte.alias_or_name for cte in stmt.find_all(exp.CTE)}
         for table in stmt.find_all(exp.Table):
-            if table.db or table.catalog or isinstance(table.parent, exp.Create):
+            if table.db or table.catalog or _is_create_target(table):
                 continue
             if table.name and table.name not in ctes:
                 names.add(table.name)
     return names
+
+
+def _is_create_target(table: exp.Table) -> bool:
+    """Whether the table is the object being created (not a table read by e.g. CREATE TABLE ... AS SELECT)."""
+    # for `CREATE TABLE t (cols)` the table's direct parent is a Schema node, not the Create node
+    create = table.find_ancestor(exp.Create)
+    return create is not None and create.this in (table, table.parent)
 
 
 def write_table(
@@ -233,35 +272,30 @@ def sqldf(
     env: dict[str, Any] | None = None,
     db_uri: str | None = None,
 ) -> DataFrame | None:
-    """Query pandas data frames using sql syntax.
+    """Query pandas data frames using SQL syntax.
 
-    This function is meant for backward compatibility only. New users are encouraged to use the PandaSQL class.
+    This function is meant for backward compatibility only. New users are
+    encouraged to use the PandaSQL class.
 
-    Parameters:
-    ----------
-    query: string
-        a sql query using DataFrames as tables
-    env: locals() or globals()
-        variable environment; locals() or globals() in your function
-        allows sqldf to access the variables in your python environment
-    db_uri: string
-        SQLAlchemy-compatible database URI
+    Args:
+        query: A SQL query using DataFrames as tables.
+        env: Variable environment (e.g. `locals()` / `globals()`) so sqldf can
+            see DataFrames in your Python scope. Defaults to the caller's
+            locals and globals.
+        db_uri: SQLAlchemy-compatible database URI. Defaults to in-memory SQLite.
 
     Returns:
-    -------
-    result: DataFrame
-        returns a DataFrame with your query's result
+        A DataFrame with the query result.
 
     Examples:
-    --------
-    >>> import pandas as pd
-    >>> df = pd.DataFrame({
-        "x": range(100),
-        "y": range(100)
-    })
-    >>> from pandasql import sqldf
-    >>> sqldf("select * from df;", globals())
-    >>> sqldf("select * from df;", locals())
-    >>> sqldf("select avg(x) from df;", locals())
+        >>> import pandas as pd
+        >>> df = pd.DataFrame({
+        ...     "x": range(100),
+        ...     "y": range(100),
+        ... })
+        >>> from pandasql import sqldf
+        >>> sqldf("select * from df;", globals())
+        >>> sqldf("select * from df;", locals())
+        >>> sqldf("select avg(x) from df;", locals())
     """
     return PandaSQL(db_uri=db_uri)(query, env)
