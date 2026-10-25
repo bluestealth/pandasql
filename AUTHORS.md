@@ -1,11 +1,14 @@
-##Authors
+## Authors
 
 - Greg Lamp
 - Austin Ogilvie
 
-##Patches
+## Patches
+
 - Colin Dickson
 - stonebig
 
-##Fork author
+## Fork author / maintainers
+
 - Alexander Plavin
+- Michael Dempsey

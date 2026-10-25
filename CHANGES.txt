@@ -1,3 +1,17 @@
+0.8.3 (fork)
+- docs: correct install name, examples, and multi-backend notes
+- drop Python 3.10 (requires Python ≥3.11)
+- remove unused README.rst and MANIFEST.in; drop pandoc from release.sh
+
+0.8.2 (fork)
+- add ty type checker
+- replace pdm with uv for packaging and tooling
+
+0.8.1 (fork)
+- typing and stricter lint
+- PEP 561
+- choice of postgresql / postgresql-binary extra
+
 0.8.0 (fork)
 - black format
 - fix tests for pandas 2.x

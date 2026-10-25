@@ -51,7 +51,8 @@ class PandaSQL:
     def __init__(self, db_uri: str | None = None, persist: bool = False) -> None:
         """Initialize with a specific database.
 
-        :param db_uri: SQLAlchemy-compatible database URI.
+        :param db_uri: SQLAlchemy-compatible database URI. Defaults to an
+            in-memory SQLite database (`sqlite:///:memory:`).
         :param persist: keep tables in database between different calls on the same object of this class.
         """
         if not db_uri:
@@ -233,35 +234,30 @@ def sqldf(
     env: dict[str, Any] | None = None,
     db_uri: str | None = None,
 ) -> DataFrame | None:
-    """Query pandas data frames using sql syntax.
+    """Query pandas data frames using SQL syntax.
 
-    This function is meant for backward compatibility only. New users are encouraged to use the PandaSQL class.
+    This function is meant for backward compatibility only. New users are
+    encouraged to use the PandaSQL class.
 
-    Parameters:
-    ----------
-    query: string
-        a sql query using DataFrames as tables
-    env: locals() or globals()
-        variable environment; locals() or globals() in your function
-        allows sqldf to access the variables in your python environment
-    db_uri: string
-        SQLAlchemy-compatible database URI
+    Args:
+        query: A SQL query using DataFrames as tables.
+        env: Variable environment (e.g. `locals()` / `globals()`) so sqldf can
+            see DataFrames in your Python scope. Defaults to the caller's
+            locals and globals.
+        db_uri: SQLAlchemy-compatible database URI. Defaults to in-memory SQLite.
 
     Returns:
-    -------
-    result: DataFrame
-        returns a DataFrame with your query's result
+        A DataFrame with the query result.
 
     Examples:
-    --------
-    >>> import pandas as pd
-    >>> df = pd.DataFrame({
-        "x": range(100),
-        "y": range(100)
-    })
-    >>> from pandasql import sqldf
-    >>> sqldf("select * from df;", globals())
-    >>> sqldf("select * from df;", locals())
-    >>> sqldf("select avg(x) from df;", locals())
+        >>> import pandas as pd
+        >>> df = pd.DataFrame({
+        ...     "x": range(100),
+        ...     "y": range(100),
+        ... })
+        >>> from pandasql import sqldf
+        >>> sqldf("select * from df;", globals())
+        >>> sqldf("select * from df;", locals())
+        >>> sqldf("select avg(x) from df;", locals())
     """
     return PandaSQL(db_uri=db_uri)(query, env)
