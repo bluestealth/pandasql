@@ -17,7 +17,7 @@ from sqlalchemy import create_engine  # pyright: ignore[reportUnknownVariableTyp
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.event import listen  # pyright: ignore[reportUnknownVariableType]
 from sqlalchemy.exc import DatabaseError as SQLAlchemyDatabaseError
-from sqlalchemy.exc import ResourceClosedError
+from sqlalchemy.exc import ResourceClosedError, SQLAlchemyError
 from sqlalchemy.pool import NullPool
 from sqlalchemy.pool.base import (
     _ConnectionRecord,  # pyright: ignore[reportPrivateUsage]
@@ -43,7 +43,7 @@ class PandaSQL:
         loaded_tables: set of currently loaded table names
     """
 
-    def __init__(self, db_uri: str | None, persist: bool = False) -> None:
+    def __init__(self, db_uri: str | None = None, persist: bool = False) -> None:
         """Initialize with a specific database.
 
         :param db_uri: SQLAlchemy-compatible database URI.
@@ -55,7 +55,7 @@ class PandaSQL:
         self.engine: Engine = create_engine(url=db_uri, poolclass=NullPool)
 
         if self.engine.name == "sqlite":
-            listen(target=self.engine, identifier="connect", fn=self._set_text_factory)
+            listen(target=self.engine, identifier="connect", fn=PandaSQL._set_text_factory)
         elif self.engine.name == "postgresql":
             pass
         else:
@@ -88,14 +88,16 @@ class PandaSQL:
 
         with self.conn as conn:
             for table_name in extract_table_names(query):
-                if table_name not in env:
-                    # don't raise error because the table may be already in the database
+                df = env.get(table_name)
+                if not isinstance(df, DataFrame):
                     continue
                 if self.persist and table_name in self.loaded_tables:
-                    # table was loaded before using the same instance, don't do it again
                     continue
+                try:
+                    write_table(df=df, tablename=table_name, conn=conn)
+                except (ValueError, SQLAlchemyError, PandasDatabaseError) as ex:
+                    raise PandaSQLException(ex) from ex
                 self.loaded_tables.add(table_name)
-                write_table(df=env[table_name], tablename=table_name, conn=conn)
 
             try:
                 result = read_sql_query(sql=query, con=conn)
@@ -138,8 +140,8 @@ class PandaSQL:
                     statement="set search_path to pg_temp",
                 )
 
+    @staticmethod
     def _set_text_factory(
-        self,
         dbapi_conn: sqlite3.Connection,
         _: _ConnectionRecord,
     ) -> None:
